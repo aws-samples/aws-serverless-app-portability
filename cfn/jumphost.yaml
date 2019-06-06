@@ -1,0 +1,48 @@
+AWSTemplateFormatVersion: "2010-09-09"
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+
+Description: >
+  This template builds a jump host in a public subnet.
+
+Parameters:
+  InstanceSize:
+    Type: String
+    Description: Instance size
+    Default: "t2.large"
+  SubnetPublicA:
+    Description: "First public subnet"
+    Type: "AWS::EC2::Subnet::Id"
+  keyname:
+    Type: AWS::EC2::KeyPair::KeyName
+  SshFirewall:
+    Type: String
+  ProjectTag:
+    Type: String
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      "AMALINUX" : "ami-97785bed" # AMALINUX SEP 2016
+    us-west-2:
+      "AMALINUX" : "ami-f2d3638a" # AMALINUX SEP 2017
+Resources:
+
+  JumpServer:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref "AWS::Region", AMALINUX]
+      InstanceType: !Ref InstanceSize
+      KeyName: !Ref keyname
+      SubnetId:
+        Ref: SubnetPublicA
+      SecurityGroupIds:
+        - !Ref SshFirewall
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+Outputs:
+  JumpAddress:
+    Description: IP address of Jump server
+    Value: !GetAtt JumpServer.PublicIp

@@ -1,0 +1,109 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+Parameters:
+  DatabaseName:
+    Type: String
+    MinLength: 1
+    MaxLength: 64
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+  DatabaseUser:
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+  DatabasePassword:
+    Type: String
+    MinLength: 8
+    MaxLength: 41
+    NoEcho: true
+    AllowedPattern: "[a-zA-Z0-9]*"
+  DbInstanceSize:
+    Type: String
+    Description: Database instance size
+    AllowedValues:
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+      - db.r4.16xlarge
+    Default: "db.r4.large"
+  ProjectTag:
+    Type: String
+    Description: Tag to apply to created resources for visibility
+  SubnetPrivateA:
+    Description: "First private subnet"
+    Type: "AWS::EC2::Subnet::Id"
+  SubnetPrivateB:
+    Description: "Second private subnet"
+    Type: "AWS::EC2::Subnet::Id"
+  DBFirewall:
+    Type: String
+Resources:
+  DBAuroraCluster:
+    Type: "AWS::RDS::DBCluster"
+    Properties:
+      DatabaseName: !Ref DatabaseName
+      Engine: aurora-mysql
+      MasterUsername: !Ref DatabaseUser
+      MasterUserPassword: !Ref DatabasePassword
+      DBSubnetGroupName: !Ref DBSubnets
+      DBClusterParameterGroupName: "default.aurora-mysql5.7"
+      VpcSecurityGroupIds:
+        - !Ref DBFirewall
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+  DBAuroraOne:
+    Type : "AWS::RDS::DBInstance"
+    Properties:
+      DBClusterIdentifier: !Ref DBAuroraCluster
+      Engine: aurora-mysql
+      DBInstanceClass: !Ref DbInstanceSize
+      DBSubnetGroupName: !Ref DBSubnets
+      DBParameterGroupName: "default.aurora-mysql5.7"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+  DBAuroraTwo:
+    Type : "AWS::RDS::DBInstance"
+    Properties:
+      DBClusterIdentifier: !Ref DBAuroraCluster
+      Engine: aurora-mysql
+      DBInstanceClass: !Ref DbInstanceSize
+      DBSubnetGroupName: !Ref DBSubnets
+      DBParameterGroupName: "default.aurora-mysql5.7"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+  DBAuroraThree:
+    Type : "AWS::RDS::DBInstance"
+    Properties:
+      DBClusterIdentifier: !Ref DBAuroraCluster
+      Engine: aurora-mysql
+      DBInstanceClass: !Ref DbInstanceSize
+      DBSubnetGroupName: !Ref DBSubnets
+      DBParameterGroupName: "default.aurora-mysql5.7"
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+  DBSubnets:
+    Type: "AWS::RDS::DBSubnetGroup"
+    Properties:
+      DBSubnetGroupDescription: "Subnets for RDS cluster"
+      SubnetIds:
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+      Tags:
+        - Key: Project
+          Value: !Ref ProjectTag
+
+
+Outputs:
+  DBClusterEndpoint:
+    Description: Aurora cluster endpoint
+    Value: !GetAtt DBAuroraCluster.Endpoint.Address
+  DBReadEndpoint:
+    Description: Aurora cluster read endpoint
+    Value: !GetAtt DBAuroraCluster.ReadEndpoint.Address

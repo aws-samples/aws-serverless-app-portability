@@ -1,0 +1,71 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+
+Parameters:
+  BrokerName:
+    Type: String
+    MinLength: 1
+    MaxLength: 64
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+  BrokerUser:
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+  BrokerPassword:
+    Type: String
+    MinLength: 8
+    MaxLength: 41
+    NoEcho: true
+    AllowedPattern: "[a-zA-Z0-9]*"
+  BrokerInstanceSize:
+    Type: String
+    Description: Database instance size
+    AllowedValues:
+      - mq.t2.micro
+      - mq.m5.large
+      - mq.m5.xlarge
+      - mq.m5.2xlarge
+      - mq.m5.4xlarge
+  ProjectTag:
+    Type: String
+    Description: Tag to apply to created resources for visibility
+  SubnetPrivateA:
+    Description: "First private subnet"
+    Type: "AWS::EC2::Subnet::Id"
+  SubnetPrivateB:
+    Description: "Second private subnet"
+    Type: "AWS::EC2::Subnet::Id"
+  BrokerFirewall:
+    Type: String
+Resources: 
+  BasicBroker:
+    Type: "AWS::AmazonMQ::Broker"
+    Properties: 
+      AutoMinorVersionUpgrade: "false"
+      BrokerName: !Ref BrokerName
+      DeploymentMode: ACTIVE_STANDBY_MULTI_AZ
+      EngineType: ActiveMQ
+      EngineVersion: "5.15.0"
+      HostInstanceType: !Ref BrokerInstanceSize
+      PubliclyAccessible: "false"
+      SecurityGroups:
+        - !Ref BrokerFirewall
+      SubnetIds:
+        - !Ref SubnetPrivateA
+        - !Ref SubnetPrivateB
+      Users: 
+        - 
+          ConsoleAccess: "true"
+          Groups: 
+            - MyGroup
+          Password: 
+            Ref: "BrokerPassword"            
+          Username: 
+            Ref: "BrokerUser"
+
+Outputs:
+  BrokerID:
+    Description: Broker ID
+    Value: !Ref BasicBroker

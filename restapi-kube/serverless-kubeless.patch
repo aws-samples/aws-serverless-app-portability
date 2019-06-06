@@ -1,0 +1,28 @@
+--- node_modules/serverless-kubeless/lib/helpers.js.orig	2018-08-27 13:22:50.000000000 -0600
++++ node_modules/serverless-kubeless/lib/helpers.js	2018-08-08 15:24:06.000000000 -0600
+@@ -100,6 +100,7 @@
+   const token = _.get(userInfo, 'user.token') ||
+     _.get(userInfo, 'user.auth-provider.config.id-token');
+   const accessToken = _.get(userInfo, 'user.auth-provider.config.access-token');
++  const execToken = _.get(userInfo, 'user.exec.command')
+   if (token) {
+     return token;
+   } else if (accessToken) {
+@@ -111,6 +112,17 @@
+       );
+     }
+     return accessToken;
++  } else if (execToken) {
++      // Handle exec-auth tokens
++      const { execSync } = require('child_process');
++      let execCmd = execToken;
++      let execArgs = _.get(userInfo, 'user.exec.args');
++      for (var ii = 0; ii < execArgs.length; ii++) {
++          execCmd = execCmd + ' ' + execArgs[ii];
++      }
++      let stdout = execSync(execCmd);
++      let json_out = JSON.parse(stdout.toString());
++      return json_out['status']['token'];
+   }
+   return null;
+ }

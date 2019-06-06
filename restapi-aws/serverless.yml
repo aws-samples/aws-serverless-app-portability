@@ -1,0 +1,62 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+#
+# This serverless function defines handlers for 
+# two operations on the 'users' resource: creating users
+# and viewing users.
+#
+service: restapi-aws
+
+provider:
+  name: aws
+  runtime: python2.7
+  stage: dev
+  region: us-west-2
+  memorySize: 512 
+  timeout: 30 
+  vpc:
+    securityGroupIds:
+      - ${cf:PortableStack.ClientFirewallId}
+    subnetIds:
+      - ${cf:PortableStack.SubnetIdPrivateA}
+      - ${cf:PortableStack.SubnetIdPrivateB}
+  environment:
+    DB_NAME: ${cf:PortableStack.DBName}
+    DB_HOST: ${cf:PortableStack.DBClusterEndpoint}
+    DB_USER: ${cf:PortableStack.DBUser}
+    DB_PASS: ${cf:PortableStack.DBPass}
+    MQ_EP_1: ${env:MQ_1}
+    MQ_EP_2: ${env:MQ_2}
+    MQ_USER: ${cf:PortableStack.BrokerUser}
+    MQ_PASS: ${cf:PortableStack.BrokerPass}
+    MQ_QUEUE: ${env:MQ_Q}
+  tags:
+    Project: PortableApp
+
+plugins:
+  - serverless-python-requirements
+
+custom:
+  pythonRequirements:
+    dockerizePip: non-linux
+
+functions:
+  create:
+    handler: handler.create
+    events:
+      - http:
+          path: users/create
+          method: get
+  get:
+    handler: handler.get
+    events:
+      - http:
+          path: users/get
+          method: get
+
+  reset:
+    handler: handler.schema
+    events:
+      - http:
+          path: users/reset
+          method: get

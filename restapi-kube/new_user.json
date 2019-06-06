@@ -1,0 +1,6 @@
+{ "httpMethod": "GET",
+  "queryStringParameters": {
+    "user_id": "Chuck",
+    "email": "cdoe@gmail.com"
+  }
+}

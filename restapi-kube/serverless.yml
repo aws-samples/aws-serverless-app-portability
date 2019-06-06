@@ -1,0 +1,63 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+# This serverless function defines handlers for 
+# two operations on the 'users' resource: creating users
+# and viewing users.
+#
+service: restapi-kube
+
+provider:
+  name: kubeless
+  runtime: python2.7
+  hostname: myk8s.io
+
+plugins:
+  - serverless-kubeless
+
+functions:
+  create:
+    handler: handler.create
+    events:
+      - http:
+          path: /users/create
+    environment:
+      DB_NAME: ${env:DBName}
+      DB_HOST: ${env:DBClusterEndpoint}
+      DB_USER: ${env:DBUser}
+      DB_PASS: ${env:DBPass}
+      MQ_EP_1: ${env:MQ_1}
+      MQ_EP_2: ${env:MQ_2}
+      MQ_USER: ${env:BrokerUser}
+      MQ_PASS: ${env:BrokerPass}
+      MQ_QUEUE: ${env:MQ_Q}
+  get:
+    handler: handler.get
+    events:
+      - http:
+          path: /users/get
+    environment:
+      DB_NAME: ${env:DBName}
+      DB_HOST: ${env:DBClusterEndpoint}
+      DB_USER: ${env:DBUser}
+      DB_PASS: ${env:DBPass}
+      MQ_EP_1: ${env:MQ_1}
+      MQ_EP_2: ${env:MQ_2}
+      MQ_USER: ${env:BrokerUser}
+      MQ_PASS: ${env:BrokerPass}
+      MQ_QUEUE: ${env:MQ_Q}
+  reset:
+    handler: handler.schema
+    events:
+      - http:
+          path: /users/reset
+    environment:
+      DB_NAME: ${env:DBName}
+      DB_HOST: ${env:DBClusterEndpoint}
+      DB_USER: ${env:DBUser}
+      DB_PASS: ${env:DBPass}
+      MQ_EP_1: ${env:MQ_1}
+      MQ_EP_2: ${env:MQ_2}
+      MQ_USER: ${env:BrokerUser}
+      MQ_PASS: ${env:BrokerPass}
+      MQ_QUEUE: ${env:MQ_Q}

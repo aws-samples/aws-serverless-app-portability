@@ -1,0 +1,273 @@
+# Copyright 2018 Amazon.com, Inc. or its affiliates. All Rights Reserved.
+# SPDX-License-Identifier: MIT-0
+
+---
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  This template builds a VPC with an RDS database.
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: "RDS Configuration"
+        Parameters:
+          - DatabaseName
+          - DatabaseUser
+          - DatabasePassword
+          - DbInstanceSize
+      -
+        Label:
+          default: "MQ Configuration"
+        Parameters:
+          - BrokerName
+          - BrokerUser
+          - BrokerPassword
+          - BrokerInstanceSize
+      -
+        Label:
+          default: "VPC and network Configuration"
+        Parameters:
+          - vpccidr
+          - AllowedCidrIngress
+          - AppPrivateCIDRA
+          - AppPrivateCIDRB
+          - AppPublicCIDRA
+          - AppPublicCIDRB
+      -
+        Label:
+          default: "Other Configuration"
+        Parameters:
+          - ProjectTag
+          - TemplateBucketName
+          - TemplateBucketPrefix
+          - keyname
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      "REGIONURLSUFFIX" : ""
+    us-west-2:
+      "REGIONURLSUFFIX" : "-us-west-2"
+
+Parameters:
+  AllowedCidrIngress:
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/YY
+    Default: 0.0.0.0/0
+  TemplateBucketName:
+    Type: String
+    Description: >
+      Name for the S3 bucket that contains the nested templates.
+  TemplateBucketPrefix:
+    Type: String
+    Description: >
+      Prefix for the path to the nested templates in the S3 bucket.
+  ProjectTag:
+    Type: String
+    Description: Tag to apply to created resources for visibility
+    Default: PortableApps
+  vpccidr:
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/16
+    Default: 10.20.0.0/16
+    Description: CIDR block for the VPC
+  AppPublicCIDRA:
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/22
+    Default: 10.20.1.0/24
+    Description: CIDR block for the first public subnet in the VPC.
+  AppPublicCIDRB:
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/22
+    Default: 10.20.2.0/24
+    Description: CIDR block for the second public subnet in the VPC.
+  AppPrivateCIDRA:
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/22
+    Default: 10.20.3.0/24
+    Description: CIDR block for the first private subnet in the VPC.
+  AppPrivateCIDRB:
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: Must be a valid CIDR range in the form x.x.x.x/22
+    Default: 10.20.4.0/24
+    Description: CIDR block for the second private subnet in the VPC.
+  DatabaseName:
+    Type: String
+    Default: portabledb
+    MinLength: 1
+    MaxLength: 64
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+  DatabaseUser:
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    Default: dbuser
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+  DatabasePassword:
+    Type: String
+    MinLength: 8
+    MaxLength: 41
+    Default: mydbcred01
+    NoEcho: true
+    AllowedPattern: "[a-zA-Z0-9]*"
+  DbInstanceSize:
+    Type: String
+    Description: Database instance size
+    AllowedValues:
+      - db.r4.large
+      - db.r4.xlarge
+      - db.r4.2xlarge
+      - db.r4.4xlarge
+      - db.r4.8xlarge
+      - db.r4.16xlarge
+    Default: "db.r4.large"
+  BrokerName:
+    Type: String
+    MinLength: 1
+    MaxLength: 64
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+  BrokerUser:
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+  BrokerPassword:
+    Type: String
+    MinLength: 8
+    MaxLength: 41
+    NoEcho: true
+    AllowedPattern: "[a-zA-Z0-9]*"
+  BrokerInstanceSize:
+    Type: String
+    Description: Database instance size
+    AllowedValues:
+      - mq.t2.micro
+      - mq.m5.large
+      - mq.m5.xlarge
+      - mq.m5.2xlarge
+      - mq.m5.4xlarge
+  keyname:
+    Type: AWS::EC2::KeyPair::KeyName
+
+Resources:
+  NetworkStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", ["https://s3", !FindInMap [RegionMap, !Ref "AWS::Region", REGIONURLSUFFIX], ".amazonaws.com/", !Ref TemplateBucketName, "/", !Ref TemplateBucketPrefix, "/network.yaml"]]
+      Parameters:
+        vpccidr: !Ref vpccidr
+        AppPrivateCIDRA: !Ref AppPrivateCIDRA
+        AppPrivateCIDRB: !Ref AppPrivateCIDRB
+        AppPublicCIDRA: !Ref AppPublicCIDRA
+        AppPublicCIDRB: !Ref AppPublicCIDRB
+  SgStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", ["https://s3", !FindInMap [RegionMap, !Ref "AWS::Region", REGIONURLSUFFIX], ".amazonaws.com/", !Ref TemplateBucketName, "/", !Ref TemplateBucketPrefix, "/secgroups.yaml"]]
+      Parameters:
+        VPC: !GetAtt NetworkStack.Outputs.VpcId
+        ProjectTag: !Ref ProjectTag
+        AllowedCidrIngress: !Ref AllowedCidrIngress
+        AppPublicCIDRA: !Ref AppPublicCIDRA
+        AppPublicCIDRB: !Ref AppPublicCIDRB
+  RdsStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", ["https://s3", !FindInMap [RegionMap, !Ref "AWS::Region", REGIONURLSUFFIX], ".amazonaws.com/", !Ref TemplateBucketName, "/", !Ref TemplateBucketPrefix, "/aurora.yaml"]]
+      Parameters:
+        ProjectTag: !Ref ProjectTag
+        DatabaseName: !Ref DatabaseName
+        DatabaseUser: !Ref DatabaseUser
+        DatabasePassword: !Ref DatabasePassword
+        DbInstanceSize: !Ref DbInstanceSize
+        SubnetPrivateA: !GetAtt NetworkStack.Outputs.SubnetIdPrivateA
+        SubnetPrivateB: !GetAtt NetworkStack.Outputs.SubnetIdPrivateB
+        DBFirewall: !GetAtt SgStack.Outputs.DBFirewallId
+  MqStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", ["https://s3", !FindInMap [RegionMap, !Ref "AWS::Region", REGIONURLSUFFIX], ".amazonaws.com/", !Ref TemplateBucketName, "/", !Ref TemplateBucketPrefix, "/mq.yaml"]]
+      Parameters:
+        ProjectTag: !Ref ProjectTag
+        BrokerName: !Ref BrokerName
+        BrokerUser: !Ref BrokerUser
+        BrokerPassword: !Ref BrokerPassword
+        BrokerInstanceSize: !Ref BrokerInstanceSize
+        SubnetPrivateA: !GetAtt NetworkStack.Outputs.SubnetIdPrivateA
+        SubnetPrivateB: !GetAtt NetworkStack.Outputs.SubnetIdPrivateB
+        BrokerFirewall: !GetAtt SgStack.Outputs.BrokerFirewallId
+  JumpStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Join ["", ["https://s3", !FindInMap [RegionMap, !Ref "AWS::Region", REGIONURLSUFFIX], ".amazonaws.com/", !Ref TemplateBucketName, "/", !Ref TemplateBucketPrefix, "/jumphost.yaml"]]
+      Parameters:
+        ProjectTag: !Ref ProjectTag
+        SubnetPublicA: !GetAtt NetworkStack.Outputs.SubnetIdPublicA
+        InstanceSize: t2.large
+        keyname: !Ref keyname
+        SshFirewall: !GetAtt SgStack.Outputs.ClientFirewallId
+  
+Outputs:
+  ProjectTagOut:
+    Description: "Tag applied to resources"
+    Value: !Ref ProjectTag
+  VpcId:
+    Description: VPC ID
+    Value: !GetAtt NetworkStack.Outputs.VpcId
+  SubnetIdPublicA:
+    Description: Subnet ID for first public subnet
+    Value: !GetAtt NetworkStack.Outputs.SubnetIdPublicA
+  SubnetIdPublicB:
+    Description: Subnet ID for second public subnet
+    Value: !GetAtt NetworkStack.Outputs.SubnetIdPublicB
+  SubnetIdPrivateA:
+    Description: Subnet ID for first private subnet
+    Value: !GetAtt NetworkStack.Outputs.SubnetIdPrivateA
+  SubnetIdPrivateB:
+    Description: Subnet ID for second private subnet
+    Value: !GetAtt NetworkStack.Outputs.SubnetIdPrivateB
+  DBFirewallId:
+    Description: ID of database security group
+    Value: !GetAtt SgStack.Outputs.DBFirewallId
+  ClientFirewallId:
+    Description: ID of database client security group
+    Value: !GetAtt SgStack.Outputs.ClientFirewallId
+  DBClusterEndpoint:
+    Description: Aurora cluster endpoint
+    Value: !GetAtt RdsStack.Outputs.DBClusterEndpoint
+  DBReadEndpoint:
+    Description: Aurora cluster read endpoint
+    Value: !GetAtt RdsStack.Outputs.DBReadEndpoint
+  DBName:
+    Value: !Ref DatabaseName
+  DBUser:
+    Value: !Ref DatabaseUser
+  DBPass:
+    Value: !Ref DatabasePassword
+  BrokerID:
+    Value: !GetAtt MqStack.Outputs.BrokerID
+  BrokerUser:
+    Value: !Ref BrokerUser
+  BrokerPass:
+    Value: !Ref BrokerPassword
